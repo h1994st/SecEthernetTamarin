@@ -38,7 +38,7 @@ section{* Attacker *}
   The adversarial capability to reveal long-term keys of parties
  */
 rule Reveal_ltk:
-    [ !Ltk(A, ltkA) ]
+    [ !Ltk(A, ltk) ]
   --[ RevealLtk(A) ]->
     [ Out(ltk) ]
 
