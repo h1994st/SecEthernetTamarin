@@ -1,0 +1,67 @@
+theory BroadcastProtection
+begin
+
+builtins: asymmetric-encryption, symmetric-encryption, hashing
+
+// Define Message Authentication Code (MAC)
+functions: mac/2, ver/3, true/0
+equations: ver(k, m, mac(k, m)) = true
+
+// Define the shared symmetric key
+functions: shk/0 [private]
+
+// Public Key Infrastructure
+section{* PKI *}
+
+/*
+  Generates a long-term key for a party
+ */
+rule Register_pk:
+    [ Fr(~ltkA) ] // Fr(x) generates a fresh (random) value
+                  // `~ltkA` stands for a long-term key or a private key
+  --[ GenLtk($A, ~ltkA) ]->
+    [ !Ltk($A, ~ltkA) // Binds the long-term key to the party `$A`
+    , !Pk($A, pk(~ltkA)) // Models the distribution of the public key
+    ]
+
+/*
+  Gets the public key from the PKI
+ */
+rule Get_pk:
+    [ !Pk(A, pubkey) ]
+  --[ GetPk(A, pubkey) ]->
+    [ Out(pubkey) ] // Outputs the public key so others and attackers have knowledge
+
+section{* Attacker *}
+
+/*
+  The adversarial capability to reveal long-term keys of parties
+ */
+rule Reveal_ltk:
+    [ !Ltk(A, ltkA) ]
+  --[ RevealLtk(A) ]->
+    [ Out(ltk) ]
+
+/*
+  The adversarial capability to reveal the shared key
+ */
+rule Reveal_shk:
+    []
+  --[ RevealShk() ]->
+    [ Out(shk) ]
+
+section{* Broadcast Communication *}
+
+rule BroadcastPDU:
+    []
+  -->
+    []
+
+rule ReceivePDU:
+    []
+  -->
+    []
+
+section{* Security Properties *}
+
+end
