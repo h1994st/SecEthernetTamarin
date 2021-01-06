@@ -3,7 +3,7 @@ name: Tamarin Verification CI
 on: [push, pull_request]
 
 jobs:
-  make-build:
+  verify:
     runs-on: ubuntu-latest
 
     steps:
