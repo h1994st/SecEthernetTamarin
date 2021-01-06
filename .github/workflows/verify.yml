@@ -1,0 +1,16 @@
+name: Tamarin Verification CI
+
+on: [push, pull_request]
+
+jobs:
+  make-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: |
+        bash .github/workflows/setup-deps.sh
+    - name: Verify
+      run: |
+        ./tamarin-prover --prove broadcast_protection.spthy

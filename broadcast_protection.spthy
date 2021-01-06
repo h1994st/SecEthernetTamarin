@@ -1,3 +1,16 @@
+/*
+    Protocol:    Broadcast Protection Protocol
+    Modeler:     Shengtuo Hu
+    Date:        January 2021
+
+    Status:      working
+
+    We present a solution to ensure the source authentication in an in-vehicle
+    Ethernet network. Our approach introduces an on-path authenticator in order
+    to minimize the overall time overhead.
+
+*/
+
 theory BroadcastProtection
 begin
 
