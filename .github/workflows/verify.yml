@@ -13,4 +13,4 @@ jobs:
         bash .github/workflows/setup-deps.sh
     - name: Verify
       run: |
-        ./tamarin-prover --prove broadcast_protection.spthy
+        tamarin-prover --prove broadcast_protection.spthy
