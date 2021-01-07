@@ -97,5 +97,28 @@ lemma Executable:
     "
 
 // Source authentication
+// lemma SourceAuthentication:
+//     " All sender1 sender2 receiver data #i #j.
+//         Send(sender1, data) @ #i
+//       & Send(sender2, data) @ #i
+//       & Receive(receiver, data) @ #j
+//         ==> sender1 = sender2
+//     "
+
+lemma InjectiveGroupAgreement:
+"All receiver data #i.
+	Receive(receiver, data) @i
+	==>	(Ex sender #j. Send(sender, data) @j
+			& j < i
+			& not ( Ex sender2 #i2. Send(sender2, data) @i2
+					& not(#i2 = #i)
+			)
+		)"
+
+lemma NonInjectiveGroupAgreement[reuse]:
+"All receiver data #i.
+	Receive(receiver, data) @i
+	==> (Ex sender #j. Send(sender, data) @ j)
+		| (Ex #r. RevealShk() @ r )"
 
 end
