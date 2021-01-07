@@ -71,10 +71,10 @@ rule SendPDU:
     [ Out(<$A, ~data, mac(shk, ~data)>) ]
 
 rule ReceivePDU:
-    [ In(<$B, data, mactag>) ]
+    [ In(<$A, data, mactag>) ]
   --[ Neq($A, $B)
     , Eq(ver(shk, data, mactag), true)
-    , Receive($A, data)
+    , Receive($B, data)
     ]->
     []
 
@@ -86,5 +86,16 @@ restriction Inequality:
     "All x #i. Neq(x, x) @ #i ==> F"
 
 section{* Security Properties *}
+
+// Executability
+lemma Executable:
+    exists-trace
+    " Ex A B data #i #j.
+        Send(A, data) @ #i
+      & Receive(B, data) @ #j
+      & i < j
+    "
+
+// Source authentication
 
 end
