@@ -65,15 +65,25 @@ rule Reveal_shk:
 
 section{* Broadcast Communication *}
 
-rule BroadcastPDU:
-    []
-  -->
-    []
+rule SendPDU:
+    [ Fr(~data) ]
+  --[ Send($A, ~data) ]->
+    [ Out(<$A, ~data, mac(shk, ~data)>) ]
 
 rule ReceivePDU:
+    [ In(<$B, data, mactag>) ]
+  --[ Neq($A, $B)
+    , Eq(ver(shk, data, mactag), true)
+    , Receive($A, data)
+    ]->
     []
-  -->
-    []
+
+// Restrictions
+restriction Equality:
+    "All x y #i. Eq(x, y) @ #i ==> x = y"
+
+restriction Inequality:
+    "All x #i. Neq(x, x) @ #i ==> F"
 
 section{* Security Properties *}
 
