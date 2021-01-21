@@ -23,6 +23,9 @@ equations: ver(k, m, mac(k, m)) = true
 // Define the shared symmetric key
 functions: shk/0 [private]
 
+// Define the gateway role
+functions: gw/0 [private] // !!!: mark this as private temporarily
+
 // Public Key Infrastructure
 section{* PKI *}
 
@@ -63,20 +66,59 @@ rule Reveal_shk:
   --[ RevealShk() ]->
     [ Out(shk) ]
 
+section{* Channels *}
+
+rule ChanOut_A_P:
+    [ Out_P($A, x) ]
+  --[ ChanOut_A_P($A, x) ]->
+    [ Out_SG($A, gw, x) ]
+
+rule ChanOut_A_SG:
+    [ Out_SG($A, gw, x) ]
+  --[ ChanOut_A_SG($A, gw, x) ]->
+    [ Out(<$A, gw, x>) ]
+
+rule ChanIn_A_SG:
+    [ In(<$A, gw, x>) ]
+  --[ ChanIn_A_SG($A, gw, x) ]->
+    [ In_SG($A, gw, x) ]
+
+rule ChanOut_A_GR:
+    [ Out_GR($A, gw, x) ]
+  --[ ChanOut_A_GR($A, gw, $B, x)
+    , Neq($A, $B)
+    , Neq(gw, $B) ]->
+    [ Out(<$A, gw, $B, x>) ]
+
+rule ChanIn_A_GR:
+    [ In(<$A, gw, $B, x>) ]
+  --[ ChanIn_A_GR($A, gw, $B, x) ]->
+    [ In_GR($A, gw, $B, x) ]
+
+rule ChanIn_A_P:
+    [ In_GR($A, gw, $B, x) ]
+  --[ ChanIn_A_P($A, x) ]->
+    [ In_P($A, x) ]
+
 section{* Broadcast Communication *}
 
 rule SendPDU:
     [ Fr(~data) ]
   --[ Send($A, ~data) ]->
-    [ Out(<$A, ~data, mac(shk, ~data)>) ]
+    [ Out_P($A, <~data, mac(shk, ~data)>) ]
 
 rule ReceivePDU:
-    [ In(<$A, data, mactag>) ]
+    [ In_P($A, <data, mactag>) ]
   --[ Neq($A, $B)
     , Eq(ver(shk, data, mactag), true)
     , Receive($B, data)
     ]->
     []
+
+rule Gateway:
+    [ In_SG($A, gw, data) ]
+  --[]->
+    [ Out_GR($A, gw, data) ]
 
 // Restrictions
 restriction Equality:
@@ -106,19 +148,24 @@ lemma Executable:
 //     "
 
 lemma InjectiveGroupAgreement:
-"All receiver data #i.
-	Receive(receiver, data) @i
-	==>	(Ex sender #j. Send(sender, data) @j
-			& j < i
-			& not ( Ex sender2 #i2. Send(sender2, data) @i2
-					& not(#i2 = #i)
-			)
-		)"
+    " All receiver data #i.
+        Receive(receiver, data) @ #i
+        ==>	(
+              Ex sender #j. Send(sender, data) @ #j
+            & #j < #i
+            & not (
+                    Ex sender2 #j2. Send(sender2, data) @ #j2
+                  & #j2 < #i
+                  )
+            )
+    "
 
 lemma NonInjectiveGroupAgreement[reuse]:
-"All receiver data #i.
-	Receive(receiver, data) @i
-	==> (Ex sender #j. Send(sender, data) @ j)
-		| (Ex #r. RevealShk() @ r )"
+    " All receiver data #i.
+        Receive(receiver, data) @i
+        ==> (
+              Ex sender #j. Send(sender, data) @ j)
+            | ( Ex #r. RevealShk() @ r )
+    "
 
 end
