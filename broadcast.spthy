@@ -41,7 +41,7 @@ section{* Initialization *}
 
 rule Register_host:
     [ !Pk($A, pubkey) ]
-  --[ OnlyOnce(<'Register_host', $Auth, $A>)
+  --[ OnlyOnce(<'Register_host', $A>)
     , RegisterHost($A)
     , AuthExists($Auth)
     , NotEq($Auth, $A) ]->
@@ -49,10 +49,10 @@ rule Register_host:
     , !NegotiateGroupKey($A, shk) ]
 
 rule Register_authenticator:
-    [ !Pk($A, pubkey) ]
-  --[ OnlyOnce(<'Register_authenticator', $A>)
-    , RegisterAuthenticator($A) ]->
-    []
+    [ !Pk($Auth, pubkey) ]
+  --[ OnlyOnce(<'Register_authenticator'>)
+    , RegisterAuthenticator($Auth) ]->
+    [ !Authenticator($Auth) ]
 
 section{* Protocol *}
 
@@ -65,8 +65,8 @@ rule Host_init_0:
     , !AuthenticatorHostMapping(Auth, A)
     , !Pk(Auth, pkAuth) ]
   --[ Create(A, 'Host')
-    , Send(A, msg)
-    , LinkKeyCreate(A, Auth, ~linkKey) ]->
+    , LinkKeyCreate(A, Auth, ~linkKey)
+    , OnlyOnce(<'LinkKeyCreate', Auth, A, ~linkKey>) ]->
     [ St_Host_init_0(A, Auth, ~linkKey)
     , Out(msg) ]
 
@@ -75,9 +75,9 @@ rule Authenticator_init_0:
       msg = aenc(<A, linkKey>, pk(ltkAuth))
   in
     [ !Ltk(Auth, ltkAuth)
-    , In(msg) ]
+    , In(msg)
+    , !Authenticator(Auth) ]
   --[ AnswerLinkKeyNegotiation(Auth, linkKey)
-    , Recv(Auth, msg)
     , LinkKeyCreate(A, Auth, linkKey) ]->
     [ St_Authenticator_init_0(A, Auth, linkKey) ]
 
@@ -174,10 +174,32 @@ section{* Properties *}
 // Executability
 lemma Executable:
     exists-trace
-    " Ex A B data #i #j.
-        Send(A, data) @ #i
-      & Recv(B, data) @ #j
+    " Ex A B data #i #j #m #n.
+        RegisterHost(A) @ #i
+      & RegisterHost(B) @ #j
+      & Send(A, data) @ #m
+      & Process(B, data) @ #n
       & i < j
+      & m < n
+      & i < m
+      & j < n
+      & not (A = B)
+    "
+
+// Correctness
+lemma Correctness:
+    " All B data #j #n.
+        RegisterHost(B) @ #j
+      & Process(B, data) @ #n
+        ==> (Ex A #i #m.
+               RegisterHost(A) @ #i
+             & Send(A, data) @ #m
+             & i < j
+             & m < n
+             & i < m
+             & j < n
+             & not (A = B)
+            )
     "
 
 end
