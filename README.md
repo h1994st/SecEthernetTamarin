@@ -47,3 +47,7 @@ tamarin-prover --prove gatekeeper.spthy
 
 tamarin-prover interactive broadcast.spthy
 ```
+
+Notes:
+
+- Legend in Tamarin prover: <https://github.com/tamarin-prover/manual/issues/21>
