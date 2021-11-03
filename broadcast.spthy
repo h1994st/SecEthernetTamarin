@@ -1,0 +1,183 @@
+/*
+ * We formalize a switch-based network for broadcast communication
+ */
+
+theory Broadcast
+begin
+
+builtins: asymmetric-encryption, symmetric-encryption, hashing
+
+// Define Message Authentication Code (MAC)
+functions: mac/2, ver/3, true/0
+equations: ver(k, m, mac(k, m)) = true
+
+// Define the shared symmetric key
+functions: shk/0
+
+section{* PKI *}
+
+/*
+  Generates a long-term key for a party
+ */
+rule Register_pk:
+    [ Fr(~ltkA) ] // Fr(x) generates a fresh (random) value
+                  // `~ltkA` stands for a long-term key or a private key
+  --[ GenLtk($A, ~ltkA)
+    , OnlyOnce(<'Register_pk', $A>) ]->
+    [ !Ltk($A, ~ltkA) // Binds the long-term key to the party `$A`
+    , !Pk($A, pk(~ltkA)) // Models the distribution of the public key
+    , Out(pk(~ltkA)) // Outputs the public key so others and attackers have knowledge
+    ]
+
+/*
+  The adversarial capability to reveal long-term keys of parties
+ */
+rule Reveal_ltk:
+    [ !Ltk(A, ltk) ]
+  --[ RevealLtk(A) ]->
+    [ Out(ltk) ]
+
+section{* Initialization *}
+
+rule Register_host:
+    [ !Pk($A, pubkey) ]
+  --[ OnlyOnce(<'Register_host', $Auth, $A>)
+    , RegisterHost($A)
+    , AuthExists($Auth)
+    , NotEq($Auth, $A) ]->
+    [ !AuthenticatorHostMapping($Auth, $A)
+    , !NegotiateGroupKey($A, shk) ]
+
+rule Register_authenticator:
+    [ !Pk($A, pubkey) ]
+  --[ OnlyOnce(<'Register_authenticator', $A>)
+    , RegisterAuthenticator($A) ]->
+    []
+
+section{* Protocol *}
+
+rule Host_init_0:
+  let
+      msg = aenc(<A, ~linkKey>, pkAuth)
+  in
+    [ Fr(~linkKey)
+    , !Ltk(A, ltkA)
+    , !AuthenticatorHostMapping(Auth, A)
+    , !Pk(Auth, pkAuth) ]
+  --[ Create(A, 'Host')
+    , Send(A, msg)
+    , LinkKeyCreate(A, Auth, ~linkKey) ]->
+    [ St_Host_init_0(A, Auth, ~linkKey)
+    , Out(msg) ]
+
+rule Authenticator_init_0:
+  let
+      msg = aenc(<A, linkKey>, pk(ltkAuth))
+  in
+    [ !Ltk(Auth, ltkAuth)
+    , In(msg) ]
+  --[ AnswerLinkKeyNegotiation(Auth, linkKey)
+    , Recv(Auth, msg)
+    , LinkKeyCreate(A, Auth, linkKey) ]->
+    [ St_Authenticator_init_0(A, Auth, linkKey) ]
+
+rule Host_send:
+  let
+      src = A
+      ciphertext = senc(~data, shk)
+      msg = <src, ciphertext>
+      magtag = mac(linkKey, msg)
+      pkt = <msg, magtag>
+  in
+    [ Fr(~data)
+    , St_Host_init_0(A, Auth, linkKey)
+    , !NegotiateGroupKey(A, shk) ]
+  --[ Send(A, ~data) ]->
+    [ St_Host_send(A, Auth)
+    , Out(pkt) ]
+
+rule Authenticator_forward:
+  let
+      msg = <A, ciphertext>
+      pktA = <msg, mactagA>
+      pktB = msg
+  in
+    [ In(pktA)
+    , St_Authenticator_init_0(A, Auth, linkKeyA)
+    , St_Authenticator_init_0(B, Auth, linkKeyB) ]
+  --[ Recv(Auth, pktA)
+    , Eq(ver(linkKeyA, msg, mactagA), true)
+    , Neq(A, B) ]->
+    [ St_Authenticator_forward_0(A, Auth, B, pktB)
+    , Out(pktB) ]
+
+rule Authenticator_proof:
+  let
+      pktHash = h(pkt)
+      mactag = mac(linkKeyB, pktHash)
+      proofPkt = <pktHash, mactag>
+  in
+    [ St_Authenticator_forward_0(A, Auth, B, pkt)
+    , St_Authenticator_init_0(B, Auth, linkKeyB) ]
+  --[ Proof(Auth, B, pkt)
+    , Send(Auth, proofPkt)
+    , Neq(A, B) ]->
+    [ Out(proofPkt) ]
+
+rule Host_recv:
+  let
+      src = A
+      ciphertext = senc(data, shk)
+      msg = <src, ciphertext>
+      pkt = msg
+  in
+    [ In(pkt)
+    , St_Host_init_0(B, Auth, linkKey) ]
+  --[ Recv(B, pkt)
+    , Neq(A, B) ]->
+    [ St_Host_recv_0(A, B, pkt) ]
+
+rule Host_process:
+  let
+      src = A
+      ciphertext = senc(data, shk)
+      msg = <src, ciphertext>
+      pkt = msg
+      pktHash = h(pkt)
+      proofPkt = <pktHash, mactag>
+  in
+    [ St_Host_recv_0(A, B, pkt)
+    , In(proofPkt)
+    , St_Host_init_0(B, Auth, linkKey) ]
+  --[ Recv(B, proofPkt)
+    , Process(B, data)
+    , Eq(ver(linkKey, pktHash, mactag), true) ]->
+    []
+
+section{* Restrictions *}
+
+restriction Equality:
+    "All x y #i. Eq(x, y) @ #i ==> x = y"
+
+restriction Inequality:
+    "All x #i. Neq(x, x) @ #i ==> F"
+
+restriction ExistingAuth:
+    "All A #i. AuthExists(A) @ #i ==>
+        (Ex #j. RegisterAuthenticator(A) @ #j & #j < #i)"
+
+restriction OnlyOnce:
+    "All #i #j x. OnlyOnce(x) @ #i & OnlyOnce(x) @ #j ==> #i = #j"
+
+section{* Properties *}
+
+// Executability
+lemma Executable:
+    exists-trace
+    " Ex A B data #i #j.
+        Send(A, data) @ #i
+      & Recv(B, data) @ #j
+      & i < j
+    "
+
+end
