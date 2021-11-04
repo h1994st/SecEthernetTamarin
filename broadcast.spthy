@@ -5,7 +5,7 @@
 theory Broadcast
 begin
 
-builtins: asymmetric-encryption, symmetric-encryption, hashing
+builtins: asymmetric-encryption, symmetric-encryption, hashing, signing
 
 // Define Message Authentication Code (MAC)
 functions: mac/2, ver/3, true/0
@@ -56,30 +56,36 @@ rule Register_authenticator:
 
 section{* Protocol *}
 
-rule Host_init_0:
-  let
-      msg = aenc(<A, ~linkKey>, pkAuth)
-  in
-    [ Fr(~linkKey)
-    , !Ltk(A, ltkA)
-    , !AuthenticatorHostMapping(Auth, A)
-    , !Pk(Auth, pkAuth) ]
-  --[ Create(A, 'Host')
-    , LinkKeyCreate(A, Auth, ~linkKey)
-    , OnlyOnce(<'LinkKeyCreate', Auth, A>) ]->
-    [ St_Host_init_0(A, Auth, ~linkKey)
-    , Out(msg) ]
-
 rule Authenticator_init_0:
   let
-      msg = aenc(<A, linkKey>, pk(ltkAuth))
+      msg = <Auth, A, ~linkKey>
+      sig = sign(msg, ltkAuth)
+      pkt = <aenc(msg, pkA), sig>
   in
-    [ !Ltk(Auth, ltkAuth)
-    , In(msg)
-    , !Authenticator(Auth) ]
-  --[ AnswerLinkKeyNegotiation(Auth, linkKey)
-    , LinkKeyCreate(A, Auth, linkKey) ]->
-    [ St_Authenticator_init_0(A, Auth, linkKey) ]
+    [ Fr(~linkKey)
+    , !Ltk(Auth, ltkAuth)
+    , !Pk(A, pkA)
+    , !Authenticator(Auth)
+    , !AuthenticatorHostMapping(Auth, A) ]
+  --[ LinkKeyCreate(A, Auth, ~linkKey)
+    , OnlyOnce(<'LinkKeyCreate', Auth, A>) ]->
+    [ St_Authenticator_init_0(A, Auth, ~linkKey)
+    , Out(pkt) ]
+
+rule Host_init_0:
+  let
+      msg = <Auth, A, linkKey>
+      pkt = <aenc(msg, pk(ltkA)), sig>
+  in
+    [ !Ltk(A, ltkA)
+    , In(pkt)
+    , !Pk(Auth, pkAuth)
+    , !AuthenticatorHostMapping(Auth, A) ]
+  --[ Create(A, 'Host')
+    , AnswerLinkKeyNegotiation(A, linkKey)
+    , LinkKeyAccepted(A, Auth, linkKey)
+    , Eq(verify(sig, msg, pkAuth), true) ]->
+    [ St_Host_init_0(A, Auth, linkKey) ]
 
 rule Host_send:
   let
@@ -92,7 +98,7 @@ rule Host_send:
     [ Fr(~data)
     , St_Host_init_0(A, Auth, linkKey)
     , !NegotiateGroupKey(A, shk) ]
-  --[ Send(A, ~data) ]->
+  --[ Send(A, msg) ]->
     [ St_Host_send(A, Auth)
     , Out(pkt) ]
 
@@ -105,7 +111,7 @@ rule Authenticator_forward:
     [ In(pktA)
     , St_Authenticator_init_0(A, Auth, linkKeyA)
     , St_Authenticator_init_0(B, Auth, linkKeyB) ]
-  --[ Recv(Auth, pktA)
+  --[ Forward(Auth, pktA)
     , Eq(ver(linkKeyA, msg, mactagA), true)
     , Neq(A, B) ]->
     [ St_Authenticator_forward_0(A, Auth, B, pktB)
@@ -120,7 +126,6 @@ rule Authenticator_proof:
     [ St_Authenticator_forward_0(A, Auth, B, pkt)
     , St_Authenticator_init_0(B, Auth, linkKeyB) ]
   --[ Proof(Auth, B, pkt)
-    , Send(Auth, proofPkt)
     , Neq(A, B) ]->
     [ Out(proofPkt) ]
 
@@ -135,7 +140,7 @@ rule Host_recv:
     , St_Host_init_0(B, Auth, linkKey) ]
   --[ Recv(B, pkt)
     , Neq(A, B) ]->
-    [ St_Host_recv_0(A, B, pkt) ]
+    [ St_Host_recv_0(A, Auth, B, pkt, linkKey) ]
 
 rule Host_process:
   let
@@ -146,11 +151,9 @@ rule Host_process:
       pktHash = h(pkt)
       proofPkt = <pktHash, mactag>
   in
-    [ St_Host_recv_0(A, B, pkt)
-    , In(proofPkt)
-    , St_Host_init_0(B, Auth, linkKey) ]
-  --[ Recv(B, proofPkt)
-    , Process(B, data)
+    [ St_Host_recv_0(A, Auth, B, pkt, linkKey)
+    , In(proofPkt) ]
+  --[ Process(B, pkt)
     , Eq(ver(linkKey, pktHash, mactag), true) ]->
     []
 
@@ -185,19 +188,66 @@ lemma Executable:
       & not (A = B)
     "
 
+lemma RecvProcessExecutable:
+    exists-trace
+    " Ex A msg #i #j #k.
+        RegisterHost(A) @ #i
+      & Recv(A, msg) @ #j
+      & Process(A, msg) @ #k
+      & j < k
+      & i < j
+    "
+
 // Correctness
 lemma Correctness:
-    " All B data #j #n.
-        RegisterHost(B) @ #j
-      & Process(B, data) @ #n
-        ==> (Ex A #i #m.
-               RegisterHost(A) @ #i
-             & Send(A, data) @ #m
+    " All A B Auth linkKeyA linkKeyB msg #i #j #m #n #q.
+        RegisterHost(A) @ #i
+      & RegisterHost(B) @ #j
+      & LinkKeyCreate(A, Auth, linkKeyA) @ #m
+      & LinkKeyCreate(B, Auth, linkKeyB) @ #n
+      & Process(B, msg) @ #q
+        ==> (
+              (Ex #p.
+                 Send(A, msg) @ #p
+               & i < m
+               & j < n
+               & p < q
+               & n < p
+              )
+            | (Ex #x. RevealLtk(A) @ #x )
+            | (Ex #y. RevealLtk(B) @ #y )
+            | (Ex #z. RevealLtk(Auth) @ #z )
+            )
+    "
 
-             & m < n
-             & i < m
-             & j < n
-             & not (A = B)
+lemma RecvThenProcess:
+    " All A msg #i #k.
+        RegisterHost(A) @ #i
+      & Process(A, msg) @ #k
+        ==> (Ex #j.
+               Recv(A, msg) @ #j
+             & j < k
+             & i < j
+            )
+    "
+
+lemma ProofThenProcess:
+    " All A Auth msg linkKey #i #n #k.
+        RegisterHost(A) @ #i
+      & Process(A, msg) @ #n
+      & LinkKeyCreate(A, Auth, linkKey) @ #k
+        ==> (
+              (Ex #j #m.
+                 RegisterAuthenticator(Auth) @ #j
+               & Proof(Auth, A, msg) @ #m
+               & i < n
+               & i < k
+               & j < k
+               & k < m
+               & m < n
+              )
+            | (Ex #l. RevealLtk(A) @ #l )
+            | (Ex #p. RevealLtk(Auth) @ #p )
             )
     "
 
