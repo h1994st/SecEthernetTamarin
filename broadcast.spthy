@@ -66,7 +66,7 @@ rule Host_init_0:
     , !Pk(Auth, pkAuth) ]
   --[ Create(A, 'Host')
     , LinkKeyCreate(A, Auth, ~linkKey)
-    , OnlyOnce(<'LinkKeyCreate', Auth, A, ~linkKey>) ]->
+    , OnlyOnce(<'LinkKeyCreate', Auth, A>) ]->
     [ St_Host_init_0(A, Auth, ~linkKey)
     , Out(msg) ]
 
@@ -179,7 +179,6 @@ lemma Executable:
       & RegisterHost(B) @ #j
       & Send(A, data) @ #m
       & Process(B, data) @ #n
-      & i < j
       & m < n
       & i < m
       & j < n
@@ -194,7 +193,7 @@ lemma Correctness:
         ==> (Ex A #i #m.
                RegisterHost(A) @ #i
              & Send(A, data) @ #m
-             & i < j
+
              & m < n
              & i < m
              & j < n
