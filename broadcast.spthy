@@ -59,8 +59,9 @@ section{* Protocol *}
 rule Authenticator_init_0:
   let
       msg = <Auth, A, ~linkKey>
-      sig = sign(msg, ltkAuth)
-      pkt = <aenc(msg, pkA), sig>
+      enc_msg = aenc(msg, pkA)
+      sig = sign(enc_msg, ltkAuth)
+      pkt = <enc_msg, sig>
   in
     [ Fr(~linkKey)
     , !Ltk(Auth, ltkAuth)
@@ -75,7 +76,8 @@ rule Authenticator_init_0:
 rule Host_init_0:
   let
       msg = <Auth, A, linkKey>
-      pkt = <aenc(msg, pk(ltkA)), sig>
+      enc_msg = aenc(msg, pk(ltkA))
+      pkt = <enc_msg, sig>
   in
     [ !Ltk(A, ltkA)
     , In(pkt)
@@ -249,6 +251,46 @@ lemma ProofThenProcess:
             | (Ex #l. RevealLtk(A) @ #l )
             | (Ex #p. RevealLtk(Auth) @ #p )
             )
+    "
+
+// No replay
+// TODO: add a counter
+lemma NoReplay:
+    " All A msg #i #j.
+        Process(A, msg) @ #i
+      & Process(A, msg) @ #j
+        ==> #i = #j
+    "
+
+// Link key secrecy
+lemma LinkKeySecrecy:
+    " not (
+        Ex A Auth linkKey #i #j.
+          LinkKeyAccepted(A, Auth, linkKey) @ #i
+        & K(linkKey) @ #j
+        & not (
+          (Ex #m. RevealLtk(A) @ #m)
+        | (Ex #n. RevealLtk(Auth) @ #n)
+        )
+      )
+    "
+
+// Source authentication
+lemma SourceAuthentication:
+    " All A B C Auth msg linkKeyA linkKeyB linkKeyC #i #j #k #l #m #n.
+        Send(A, msg) @ #i
+      & Send(B, msg) @ #j
+      & Process(C, msg) @ #k
+      & LinkKeyAccepted(A, Auth, linkKeyA) @ #l
+      & LinkKeyAccepted(B, Auth, linkKeyB) @ #m
+      & LinkKeyAccepted(C, Auth, linkKeyC) @ #n
+      ==> (
+             ((A = B) & (#i = #j) & (#l = #m) & (#i < #k))
+           | (Ex #x. RevealLtk(A) @ #x )
+           | (Ex #y. RevealLtk(B) @ #y )
+           | (Ex #z. RevealLtk(C) @ #z )
+           | (Ex #p. RevealLtk(Auth) @ #p )
+          )
     "
 
 end
