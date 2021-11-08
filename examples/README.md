@@ -11,3 +11,5 @@
     - [Source codes (Coq)](http://users.ece.cmu.edu/~liminjia/net-verif/)
 - Modeling Human Errors in Security Protocols
     - [Source codes](https://ethz.ch/content/dam/ethz/special-interest/infk/inst-infsec/information-security-group-dam/research/projects/hisp/tamarinFiles-CSF16-HumanErrors.zip)
+- Security Analysis of Automotive Protocols. CSCS 2020
+    - [Source codes](https://code.fbi.h-da.de/seacop/secoc-tamarin)
