@@ -9,7 +9,9 @@
     - [Source codes](https://github.com/benrothen/piskes-verification)
 - Mechanized Network Origin and Path Authenticity Proofs. CCS 2014
     - [Source codes (Coq)](http://users.ece.cmu.edu/~liminjia/net-verif/)
-- Modeling Human Errors in Security Protocols
+- Modeling Human Errors in Security Protocols. CSF 2016
     - [Source codes](https://ethz.ch/content/dam/ethz/special-interest/infk/inst-infsec/information-security-group-dam/research/projects/hisp/tamarinFiles-CSF16-HumanErrors.zip)
 - Security Analysis of Automotive Protocols. CSCS 2020
     - [Source codes](https://code.fbi.h-da.de/seacop/secoc-tamarin)
+- Formal Verification of Secure Forwarding Protocols. CSF 2021
+    - [Artifact (Isabelle/HOL)](https://zenodo.org/record/4515953)
