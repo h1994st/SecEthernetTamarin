@@ -100,7 +100,8 @@ rule Host_send:
     [ Fr(~data)
     , St_Host_init_0(A, Auth, linkKey)
     , !NegotiateGroupKey(A, shk) ]
-  --[ Send(A, msg) ]->
+  --[ Send(A, msg)
+    , Honest(A) ]->
     [ St_Host_send(A, Auth)
     , Out(pkt) ]
 
@@ -128,7 +129,8 @@ rule Authenticator_proof:
     [ St_Authenticator_forward_0(A, Auth, B, pkt)
     , St_Authenticator_init_0(B, Auth, linkKeyB) ]
   --[ Proof(Auth, B, pkt)
-    , Neq(A, B) ]->
+    , Neq(A, B)
+    , DoS_Protection(pkt) ]->
     [ Out(proofPkt) ]
 
 rule Host_recv:
@@ -310,5 +312,19 @@ lemma SourceAuthentication2:
            | (Ex #z. RevealLtk(Auth) @ #z )
           )
     "
+
+lemma DoSProtection:
+  " All m #i.
+      DoS_Protection(m) @ #i
+    ==> (
+           (Ex A #j.
+              Send(A, m) @ #j
+            & Honest(A) @ #j
+            & #j < #i)
+         | (Ex A #r.
+              RevealLtk(A) @ #r
+            & Honest(A) @ #i
+            & #r < #i)
+        )"
 
 end
