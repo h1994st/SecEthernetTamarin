@@ -130,7 +130,7 @@ rule Authenticator_proof:
     , St_Authenticator_init_0(B, Auth, linkKeyB) ]
   --[ Proof(Auth, B, pkt)
     , Neq(A, B)
-    , DoS_Protection(pkt) ]->
+    , ProofGeneration(Auth) ]->
     [ Out(proofPkt) ]
 
 rule Host_recv:
@@ -314,8 +314,8 @@ lemma SourceAuthentication2:
     "
 
 lemma DoSProtection:
-  " All m #i.
-      DoS_Protection(m) @ #i
+  " All authenticator #i.
+      ProofGeneration(authenticator) @ #i
     ==> (
            (Ex A #j.
               Send(A, m) @ #j
