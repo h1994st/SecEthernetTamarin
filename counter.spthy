@@ -1,0 +1,33 @@
+theory counter begin
+
+builtins: multiset
+
+rule Create:
+    [ ]
+  --[ Start($A) ]->
+    [ Counter($A, '1')]
+
+rule Inc:
+    [ Counter(A, cnt), In(cnt) ]
+  --[ Counter(A, cnt), Process(A, cnt) ]->
+    [ Counter(A, cnt + '1' ) ]
+
+lemma CounterLinearOrder[reuse, use_induction]:
+  "All x y #i #j A.
+      Counter(A, x) @ i & Counter(A, y) @ j
+      ==> (Ex z. x + z = y) | (Ex z. y + z = x) | y = x"
+
+lemma CounterStart[reuse, use_induction]:
+  "All #i x A.
+      Counter(A, x) @ i  ==> Ex #j. Start(A) @ j & #j < #i"
+
+lemma CounterIncreases[reuse, use_induction]:
+  "All x y #i #j A.
+      Counter(A, x) @ i & Counter(A, y) @ j ==> #i < #j
+      ==> Ex z. x + z = y"
+
+lemma CounterNoReplay[reuse, use_induction]:
+  "All A x #i #j.
+      Process(A, x) @ #i & Process(A, x) @ #j ==> #i = #j"
+
+end
