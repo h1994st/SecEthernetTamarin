@@ -92,7 +92,8 @@ rule Host_init_0:
 rule Host_send:
   let
       src = A
-      ciphertext = senc(~data, shk)
+      payload = <~data>
+      ciphertext = senc(payload, shk)
       msg = <src, ciphertext>
       magtag = mac(linkKey, msg)
       pkt = <msg, magtag>
@@ -136,7 +137,8 @@ rule Authenticator_proof:
 rule Host_recv:
   let
       src = A
-      ciphertext = senc(data, shk)
+      payload = <data>
+      ciphertext = senc(payload, shk)
       msg = <src, ciphertext>
       pkt = msg
   in
@@ -149,7 +151,8 @@ rule Host_recv:
 rule Host_process:
   let
       src = A
-      ciphertext = senc(data, shk)
+      payload = <data>
+      ciphertext = senc(payload, shk)
       msg = <src, ciphertext>
       pkt = msg
       pktHash = h(pkt)
@@ -256,7 +259,6 @@ lemma ProofThenProcess:
     "
 
 // No replay
-// TODO: add a counter
 lemma NoReplay:
     " All A msg #i #j.
         Process(A, msg) @ #i
@@ -317,7 +319,7 @@ lemma DoSProtection:
   " All authenticator #i.
       ProofGeneration(authenticator) @ #i
     ==> (
-           (Ex A #j.
+           (Ex A m #j.
               Send(A, m) @ #j
             & Honest(A) @ #j
             & #j < #i)
