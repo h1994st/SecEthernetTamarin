@@ -1,4 +1,4 @@
-# Secure Ethernet Tamarin
+# Gatekeeper Model
 
 A formal model of a broadcast protection approach in Tamarin for automated security analysis
 
