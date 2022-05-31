@@ -38,13 +38,10 @@ make default
 
 ## Get Started
 
-- `broadcast.spthy`: broadcast communication without source authentication
-- `gatekeeper.spthy`: Gatekeeper that helps ensure source authentication in broadcast communication
+- `broadcast.spthy`: Gatekeeper that helps ensure source authentication in broadcast communication
 
 ```bash
 tamarin-prover --prove broadcast.spthy
-tamarin-prover --prove gatekeeper.spthy
-
 tamarin-prover interactive broadcast.spthy
 ```
 
